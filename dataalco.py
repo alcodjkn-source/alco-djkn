@@ -86,7 +86,8 @@ def upsert_row(worksheet, row):
     worksheet.clear()
     worksheet.append_row(list(df.columns))
     for r in df.to_numpy().tolist():
-        worksheet.append_row(r)
+    # Convert ke string agar tidak error JSON
+    worksheet.append_row([str(x) if x is not None else "" for x in r])
     return df
 
 # --- TEST KONEKSI GOOGLE SHEETS ---
@@ -191,50 +192,133 @@ if submit:
     mom = ((realisasi_bln - prev_row["RealisasiBulanan"]) / prev_row["RealisasiBulanan"] * 100) if prev_row is not None and prev_row["RealisasiBulanan"] != 0 else 0
     yoy = ((realisasi_ytd_2025 - realisasi_ytd_2024) / realisasi_ytd_2024 * 100) if realisasi_ytd_2024 else 0
 
-    # -----------------------
-    # VISUALISASI
-    # -----------------------
-    st.markdown("## 📈 Visualisasi")
+# -----------------------
+# VISUALISASI
+# -----------------------
+st.markdown("## 📈 Visualisasi")
 
-    # Chart 1 - MoM
-    prev_month = prev_row["Bulan"] if prev_row is not None else "–"
-    months = [prev_month, bulan]
-    vals_target = [prev_row["TargetBulanan"] if prev_row is not None else 0, target_bln]
-    vals_realisasi = [prev_row["RealisasiBulanan"] if prev_row is not None else 0, realisasi_bln]
+# ===== Chart 1 - MoM (Month-on-Month) =====
+prev_month = prev_row["Bulan"] if prev_row is not None else "–"
+months = [prev_month, bulan]
+vals_target = [prev_row["TargetBulanan"] if prev_row is not None else 0, target_bln]
+vals_realisasi = [prev_row["RealisasiBulanan"] if prev_row is not None else 0, realisasi_bln]
 
-    fig1 = go.Figure()
-    fig1.add_bar(x=months, y=vals_target, name="Target", marker_color="#005BAC", text=[f"{v:,.0f}" for v in vals_target])
-    fig1.add_bar(x=months, y=vals_realisasi, name="Realisasi", marker_color="#76C043", text=[f"{v:,.0f}" for v in vals_realisasi])
-    fig1.add_scatter(x=months, y=vals_realisasi, name="Tren Realisasi", mode="lines+markers", line=dict(color="#76C043", width=3))
-    fig1.add_annotation(text=f"{mom:+.1f}% (MoM)", x=bulan, y=max(vals_target)*1.1, showarrow=False, font=dict(color="green", size=16))
-    fig1.update_layout(
-        title=f"Target dan Realisasi PNBP Bulan {bulan} {tahun}",
-        barmode="group",
-        template="simple_white",
-        legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center")
-    )
+fig1 = go.Figure()
+fig1.add_bar(
+    x=months,
+    y=vals_target,
+    name="Target",
+    marker_color="#005BAC",
+    text=[f"{v:,.0f}" for v in vals_target],
+)
+fig1.add_bar(
+    x=months,
+    y=vals_realisasi,
+    name="Realisasi",
+    marker_color="#76C043",
+    text=[f"{v:,.0f}" for v in vals_realisasi],
+)
+fig1.add_scatter(
+    x=months,
+    y=vals_realisasi,
+    name="Tren Realisasi",
+    mode="lines+markers",
+    line=dict(color="#76C043", width=3),
+)
 
-    # Chart 2 - YoY
-    fig2 = go.Figure()
-    fig2.add_bar(x=["2024","2025"], y=[realisasi_ytd_2024,realisasi_ytd_2025], name="Realisasi YTD", marker_color="#76C043")
-    fig2.add_bar(x=["2024","2025"], y=[target_tahun_2024,target_tahun_2025], name="Target Tahunan", marker_color="#005BAC")
-    fig2.add_scatter(x=["2024","2025"], y=[realisasi_ytd_2024,realisasi_ytd_2025], name="Tren Realisasi", line=dict(color="#76C043", width=3))
-    fig2.add_annotation(text=f"{yoy:+.1f}% (YoY)", x="2025", y=max(target_tahun_2025,realisasi_ytd_2025)*1.1, showarrow=False, font=dict(color="green", size=16))
-    fig2.update_layout(
-        title=f"Target dan Realisasi PNBP s.d. {bulan} {tahun}",
-        barmode="group",
-        template="simple_white",
-        legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center")
-    )
+# Arrow indicator MoM
+arrow_symbol = "▲" if mom > 0 else ("▼" if mom < 0 else "➖")
+arrow_color = "green" if mom > 0 else ("red" if mom < 0 else "gray")
+fig1.add_annotation(
+    text=f"{arrow_symbol} {mom:+.1f}% (MoM)",
+    x=bulan,
+    y=(max(vals_target + vals_realisasi) if (vals_target + vals_realisasi) else 0) * 1.05 + 1,
+    showarrow=False,
+    font=dict(color=arrow_color, size=14, family="Arial Black"),
+)
 
-    # Chart 3 - Breakdown Jenis
-    jenis = ["Lelang","BMN","Piutang","KNL","Lainnya"]
-    nilai = [lelang,bmn,piutang,knl,lainnya]
-    fig3 = px.bar(x=nilai, y=jenis, orientation="h", text=[f"{v:,.0f}" for v in nilai],
-                  color_discrete_sequence=["#005BAC"], title=f"Realisasi PNBP Berdasarkan Jenis s.d. {bulan}")
-    fig3.update_traces(textposition="outside")
-    fig3.update_layout(template="simple_white")
+fig1.update_layout(
+    title=f"Target dan Realisasi PNBP Bulan {bulan} {tahun}",
+    barmode="group",
+    template="simple_white",
+    legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
+    margin=dict(t=80, b=50, l=40, r=40),
+    height=420,
+)
 
-    st.plotly_chart(fig1, use_container_width=True)
-    st.plotly_chart(fig2, use_container_width=True)
-    st.plotly_chart(fig3, use_container_width=True)
+# ===== Chart 2 - YoY (Year-on-Year) =====
+r2024 = float(realisasi_ytd_2024 or 0)
+r2025 = float(realisasi_ytd_2025 or 0)
+t2024 = float(target_tahun_2024 or 0)
+t2025 = float(target_tahun_2025 or 0)
+
+fig2 = go.Figure()
+fig2.add_bar(
+    x=["2024", "2025"],
+    y=[t2024, t2025],
+    name="Target Tahunan",
+    marker_color="#005BAC",
+    text=[f"{v:,.0f}" for v in [t2024, t2025]],
+)
+fig2.add_bar(
+    x=["2024", "2025"],
+    y=[r2024, r2025],
+    name="Realisasi YTD",
+    marker_color="#76C043",
+    text=[f"{v:,.0f}" for v in [r2024, r2025]],
+)
+fig2.add_scatter(
+    x=["2024", "2025"],
+    y=[r2024, r2025],
+    name="Tren Realisasi",
+    line=dict(color="#76C043", width=3),
+)
+
+arrow_symbol_yoy = "▲" if yoy > 0 else ("▼" if yoy < 0 else "➖")
+arrow_color_yoy = "green" if yoy > 0 else ("red" if yoy < 0 else "gray")
+fig2.add_annotation(
+    text=f"{arrow_symbol_yoy} {yoy:+.1f}% (YoY)",
+    x="2025",
+    y=max(t2025, r2025) * 1.05 + 1,
+    showarrow=False,
+    font=dict(color=arrow_color_yoy, size=14, family="Arial Black"),
+)
+
+fig2.update_layout(
+    title=f"Target dan Realisasi PNBP s.d. {bulan} {tahun}",
+    barmode="group",
+    template="simple_white",
+    legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
+    margin=dict(t=80, b=50, l=40, r=40),
+    height=420,
+)
+
+# ===== Chart 3 - Breakdown Jenis (horizontal bar) =====
+jenis = ["Lelang", "BMN", "Piutang Negara", "Kek. Negara Lain-lain", "Lainnya"]
+# Pastikan nilai numerik (fallback 0)
+nilai = [
+    float(lelang or 0),
+    float(bmn or 0),
+    float(piutang or 0),
+    float(knl or 0),
+    float(lainnya or 0)
+]
+fig3 = px.bar(
+    x=nilai,
+    y=jenis,
+    orientation="h",
+    text=[f"{v:,.0f}" for v in nilai],
+    title=f"Realisasi PNBP Berdasarkan Jenis s.d. {bulan}",
+    template="simple_white",
+    labels={"x": "Nilai (juta)", "y": ""}
+)
+fig3.update_traces(textposition="outside")
+fig3.update_layout(
+    margin=dict(l=120, r=40, t=60, b=40),
+    height=360,
+)
+
+# ===== Render charts =====
+st.plotly_chart(fig1, use_container_width=True)
+st.plotly_chart(fig2, use_container_width=True)
+st.plotly_chart(fig3, use_container_width=True)
