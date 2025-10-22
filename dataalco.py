@@ -74,21 +74,35 @@ def open_or_create_worksheet(client, provinsi):
         ])
     return ws
 
-def upsert_row(worksheet, row):
+def upsert_row_insert_only(worksheet, row):
+    """Menambahkan baris baru jika kombinasi Provinsi, Bulan, Tahun belum ada."""
     df = get_as_dataframe(worksheet, evaluate_formulas=True, header=0).dropna(how="all")
-    mask = (df["Tahun"] == row["Tahun"]) & (df["Bulan"] == row["Bulan"])
+
+    # Pastikan kolom sudah ada
+    if df.empty or "Provinsi" not in df.columns:
+        worksheet.clear()
+        worksheet.append_row(list(row.keys()))
+        worksheet.append_row(list(map(str, row.values())))
+        st.success(f"✅ Sheet baru dibuat dan data pertama untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} berhasil disimpan.")
+        return df
+
+    # Cek apakah kombinasi Provinsi, Bulan, Tahun sudah ada
+    mask = (
+        (df["Provinsi"].astype(str) == str(row["Provinsi"])) &
+        (df["Bulan"].astype(str) == str(row["Bulan"])) &
+        (df["Tahun"].astype(str) == str(row["Tahun"]))
+    )
+
     if mask.any():
-        idx = df.index[mask][0]
-        for k,v in row.items():
-            df.at[idx,k] = v
-    else:
-        df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
-    worksheet.clear()
-    worksheet.append_row(list(df.columns))
-    for r in df.to_numpy().tolist():
-    # Convert ke string agar tidak error JSON
-    worksheet.append_row([str(x) if x is not None else "" for x in r])
+        # Jika sudah ada, tampilkan peringatan dan tidak menyimpan ulang
+        st.warning(f"⚠️ Data untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} sudah ada di Google Sheets. Tidak disimpan ulang.")
+        return df
+
+    # Jika belum ada, tambahkan data baru
+    worksheet.append_row([str(x) if x is not None else "" for x in row.values()])
+    st.success(f"✅ Data baru untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} berhasil ditambahkan.")
     return df
+
 
 # --- TEST KONEKSI GOOGLE SHEETS ---
 if st.sidebar.button("🔍 Tes Koneksi Google Sheets"):
@@ -179,7 +193,7 @@ if submit:
         "Catatan": notes
     }
 
-    df_ws = upsert_row(ws, row)
+    df_ws = upsert_row_insert_only(ws, row)
     st.success(f"✅ Data {provinsi} bulan {bulan} {tahun} tersimpan & diperbarui di Google Sheets!")
 
     # -----------------------
