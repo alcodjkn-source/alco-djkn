@@ -336,3 +336,84 @@ fig3.update_layout(
 st.plotly_chart(fig1, use_container_width=True)
 st.plotly_chart(fig2, use_container_width=True)
 st.plotly_chart(fig3, use_container_width=True)
+
+# ==============================================================
+# 📅 Halaman Data PNBP per Tahun
+# ==============================================================
+st.markdown("---")
+st.header("📊 Rekap Data PNBP per Tahun")
+
+if not (json_keyfile_path or service_account_info):
+    st.warning("⚠️ Tidak ada credentials. Upload/paste JSON credentials di sidebar agar bisa menampilkan data dari Google Sheets.")
+else:
+    try:
+        client = gs_connect(service_account_info, json_keyfile_path)
+        ws = open_or_create_worksheet(client, provinsi)
+        df_all = get_as_dataframe(ws, evaluate_formulas=True, header=0).dropna(how="all")
+
+        if df_all.empty:
+            st.info(f"Belum ada data tersimpan untuk {provinsi}.")
+        else:
+            # Konversi tipe data
+            for c in ["Tahun", "TargetBulanan", "RealisasiBulanan", "BMN", "Lelang", "Piutang", "KNL", "Lainnya"]:
+                if c in df_all.columns:
+                    df_all[c] = pd.to_numeric(df_all[c], errors="coerce")
+
+            tahun_terpilih = st.selectbox("Pilih Tahun Data:", sorted(df_all["Tahun"].dropna().unique()), index=len(df_all["Tahun"].unique())-1)
+            df_tahun = df_all[df_all["Tahun"] == tahun_terpilih]
+
+            # Buat tabel rekap per bulan
+            kolom_jenis = ["BMN", "Lelang", "Piutang", "KNL", "Lainnya"]
+            df_tabel = df_tahun.groupby("Bulan")[kolom_jenis].sum().reset_index()
+
+            # Urutkan bulan
+            urutan_bulan = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"]
+            df_tabel["Bulan"] = pd.Categorical(df_tabel["Bulan"], categories=urutan_bulan, ordered=True)
+            df_tabel = df_tabel.sort_values("Bulan")
+
+            st.subheader(f"Tabel PNBP Tahun {tahun_terpilih} — {provinsi}")
+            st.dataframe(df_tabel, use_container_width=True, hide_index=True)
+
+            # ==========================================================
+            # Visualisasi otomatis dari tabel ini
+            # ==========================================================
+            st.markdown("### 📈 Visualisasi Otomatis")
+            chart_type = st.radio("Pilih jenis visualisasi:", ["Clustered Column", "Stacked Bar"], horizontal=True)
+
+            if chart_type == "Clustered Column":
+                fig_tahun = go.Figure()
+                for jenis in kolom_jenis:
+                    fig_tahun.add_bar(
+                        x=df_tabel["Bulan"],
+                        y=df_tabel[jenis],
+                        name=jenis
+                    )
+                fig_tahun.update_layout(
+                    barmode="group",
+                    title=f"Target dan Realisasi PNBP per Jenis — Tahun {tahun_terpilih}",
+                    template="simple_white",
+                    legend=dict(orientation="h", y=1.15, x=0.5, xanchor="center"),
+                    autosize=True,
+                    height=500
+                )
+            else:
+                fig_tahun = go.Figure()
+                for jenis in kolom_jenis:
+                    fig_tahun.add_bar(
+                        x=df_tabel["Bulan"],
+                        y=df_tabel[jenis],
+                        name=jenis
+                    )
+                fig_tahun.update_layout(
+                    barmode="stack",
+                    title=f"Komposisi PNBP per Bulan — Tahun {tahun_terpilih}",
+                    template="simple_white",
+                    legend=dict(orientation="h", y=1.15, x=0.5, xanchor="center"),
+                    autosize=True,
+                    height=500
+                )
+
+            st.plotly_chart(fig_tahun, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Gagal memuat data dari Google Sheets: {e}")
