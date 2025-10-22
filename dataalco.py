@@ -196,6 +196,10 @@ if submit:
     df_ws = upsert_row_insert_only(ws, row)
     st.success(f"✅ Data {provinsi} bulan {bulan} {tahun} tersimpan & diperbarui di Google Sheets!")
 
+# Pastikan df_ws selalu ada meski data belum tersimpan
+if 'df_ws' not in locals():
+    df_ws = pd.DataFrame()
+
 # -----------------------
 # HITUNG MoM & YoY OTOMATIS
 # -----------------------
