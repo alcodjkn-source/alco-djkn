@@ -44,6 +44,7 @@ except Exception:
         if secret_json:
             service_account_info = json.loads(secret_json)
 
+@st.cache_resource(hash_funcs={dict: lambda _: None})
 def gs_connect(service_account_info=None, json_keyfile_path=None):
     scope = ["https://spreadsheets.google.com/feeds","https://www.googleapis.com/auth/drive"]
     if json_keyfile_path:
