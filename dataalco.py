@@ -22,20 +22,27 @@ GSHEET_NAME = "ALCo_Data"
 # AUTH GOOGLE SHEETS
 # -----------------------
 st.sidebar.header("Konfigurasi")
-auth_method = st.sidebar.radio("Auth Google Sheets:", ["Upload JSON", "Paste JSON"])
 
 service_account_info = None
 json_keyfile_path = None
-if auth_method == "Upload JSON":
-    uploaded = st.sidebar.file_uploader("Upload service_account.json", type=["json"])
-    if uploaded:
-        json_keyfile_path = "service_account.json"
-        with open(json_keyfile_path, "wb") as f:
-            f.write(uploaded.getbuffer())
-else:
-    secret_json = st.sidebar.text_area("Paste JSON credentials", height=200)
-    if secret_json:
-        service_account_info = json.loads(secret_json)
+
+# 🔹 Coba baca otomatis dari Streamlit Secrets
+try:
+    service_account_info = st.secrets["gcp_service_account"]
+    st.sidebar.success("✅ Credentials otomatis terdeteksi dari Streamlit Secrets.")
+except Exception:
+    st.sidebar.warning("⚠️ Tidak ada credentials di Streamlit Secrets. Upload/paste manual jika lokal.")
+    auth_method = st.sidebar.radio("Auth Google Sheets:", ["Upload JSON", "Paste JSON"])
+    if auth_method == "Upload JSON":
+        uploaded = st.sidebar.file_uploader("Upload service_account.json", type=["json"])
+        if uploaded:
+            json_keyfile_path = "service_account.json"
+            with open(json_keyfile_path, "wb") as f:
+                f.write(uploaded.getbuffer())
+    else:
+        secret_json = st.sidebar.text_area("Paste JSON credentials", height=200)
+        if secret_json:
+            service_account_info = json.loads(secret_json)
 
 @st.cache_resource
 def gs_connect(service_account_info=None, json_keyfile_path=None):
@@ -119,7 +126,7 @@ submit = st.button("💾 Simpan Data & Tampilkan Visualisasi")
 # -----------------------
 if submit:
     if not (json_keyfile_path or service_account_info):
-        st.error("⚠️ Tidak ada credentials. Upload/paste JSON credentials di sidebar agar data tersimpan ke Google Sheets.")
+        st.error("⚠️ Tidak ada credentials. Pastikan sudah menambahkan `gcp_service_account` di Streamlit Secrets atau upload JSON di sidebar.")
         st.stop()
 
     client = gs_connect(service_account_info, json_keyfile_path)
