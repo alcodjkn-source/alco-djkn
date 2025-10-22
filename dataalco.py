@@ -196,25 +196,27 @@ if submit:
     df_ws = upsert_row_insert_only(ws, row)
     st.success(f"✅ Data {provinsi} bulan {bulan} {tahun} tersimpan & diperbarui di Google Sheets!")
 
-    # -----------------------
-    # HITUNG MoM & YoY OTOMATIS
-    # -----------------------
-   if df_ws is not None and not df_ws.empty:
+# -----------------------
+# HITUNG MoM & YoY OTOMATIS
+# -----------------------
+if df_ws is not None and not df_ws.empty:
     df_ws = df_ws.sort_values(by=["Tahun", "Bulan"], ascending=[True, True])
 
     this_idx = df_ws[(df_ws["Tahun"] == tahun) & (df_ws["Bulan"] == bulan)].index
-    prev_row = df_ws.iloc[this_idx[0]-1] if len(this_idx) > 0 and this_idx[0] > 0 else None
+    if len(this_idx) > 0 and this_idx[0] > 0:
+        prev_row = df_ws.iloc[this_idx[0] - 1]
+    else:
+        prev_row = None
 
-    mom = (
-        (realisasi_bln - prev_row["RealisasiBulanan"]) / prev_row["RealisasiBulanan"] * 100
-        if prev_row is not None and prev_row["RealisasiBulanan"] != 0
-        else 0
-    )
-    yoy = (
-        (realisasi_ytd_2025 - realisasi_ytd_2024) / realisasi_ytd_2024 * 100
-        if realisasi_ytd_2024
-        else 0
-    )
+    if prev_row is not None and prev_row["RealisasiBulanan"] != 0:
+        mom = (realisasi_bln - prev_row["RealisasiBulanan"]) / prev_row["RealisasiBulanan"] * 100
+    else:
+        mom = 0
+
+    if realisasi_ytd_2024:
+        yoy = (realisasi_ytd_2025 - realisasi_ytd_2024) / realisasi_ytd_2024 * 100
+    else:
+        yoy = 0
 else:
     prev_row = None
     mom = 0
