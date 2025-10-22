@@ -199,12 +199,18 @@ if submit:
     # -----------------------
     # HITUNG MoM & YoY OTOMATIS
     # -----------------------
-    df_ws = df_ws.sort_values(by=["Tahun", "Bulan"])
+    if df_ws is not None and not df_ws.empty:
+    df_ws = df_ws.sort_values(by=["Tahun", "Bulan"], ascending=[True, True])
+
     this_idx = df_ws[(df_ws["Tahun"] == tahun) & (df_ws["Bulan"] == bulan)].index
     prev_row = df_ws.iloc[this_idx[0]-1] if len(this_idx)>0 and this_idx[0]>0 else None
 
     mom = ((realisasi_bln - prev_row["RealisasiBulanan"]) / prev_row["RealisasiBulanan"] * 100) if prev_row is not None and prev_row["RealisasiBulanan"] != 0 else 0
     yoy = ((realisasi_ytd_2025 - realisasi_ytd_2024) / realisasi_ytd_2024 * 100) if realisasi_ytd_2024 else 0
+else:
+    prev_row = None
+    mom = 0
+    yoy = 0
 
 # -----------------------
 # VISUALISASI
@@ -212,7 +218,7 @@ if submit:
 st.markdown("## 📈 Visualisasi")
 
 # ===== Chart 1 - MoM (Month-on-Month) =====
-prev_month = prev_row["Bulan"] if prev_row is not None else "–"
+prev_month = prev_row["Bulan"] if (prev_row is not None and "Bulan" in prev_row) else "–"
 months = [prev_month, bulan]
 vals_target = [prev_row["TargetBulanan"] if prev_row is not None else 0, target_bln]
 vals_realisasi = [prev_row["RealisasiBulanan"] if prev_row is not None else 0, realisasi_bln]
