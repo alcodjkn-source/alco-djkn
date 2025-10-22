@@ -89,6 +89,31 @@ def upsert_row(worksheet, row):
         worksheet.append_row(r)
     return df
 
+# --- TEST KONEKSI GOOGLE SHEETS ---
+if st.sidebar.button("🔍 Tes Koneksi Google Sheets"):
+    try:
+        # Gunakan kredensial yang sama
+        client = gs_connect(service_account_info, json_keyfile_path)
+
+        # Coba buka spreadsheet
+        st.write(f"📄 Mencoba membuka spreadsheet: {GSHEET_NAME}")
+        sh = client.open(GSHEET_NAME)
+        st.success(f"✅ Berhasil terhubung ke spreadsheet: {sh.title}")
+
+        # Tampilkan daftar worksheet
+        worksheets = [ws.title for ws in sh.worksheets()]
+        st.info(f"Worksheet yang tersedia: {worksheets}")
+
+    except gspread.SpreadsheetNotFound:
+        st.error(f"❌ Spreadsheet '{GSHEET_NAME}' tidak ditemukan di Google Drive.")
+        st.info("👉 Pastikan nama sheet benar dan sudah di-share ke akun service account.")
+    except gspread.exceptions.APIError as e:
+        st.error("🚫 Gagal mengakses Google Sheets — kemungkinan besar izin belum diberikan.")
+        st.code(str(e))
+    except Exception as e:
+        st.error("❌ Error lain saat mencoba koneksi:")
+        st.code(str(e))
+
 # -----------------------
 # FORM INPUT
 # -----------------------
