@@ -93,31 +93,35 @@ def upsert_row_with_confirmation(worksheet, row, key_prefix=""):
         (df["Tahun"] == row["Tahun"])
     )
 
-    if mask.any():
-        # Jika data sudah ada, tampilkan tombol konfirmasi di luar cache
+    key_update = f"confirm_update_{key_prefix}_{row['Provinsi']}_{row['Bulan']}_{row['Tahun']}"
+
+    if mask.any() and not st.session_state.get(key_update, False):
+        # Jika data sudah ada dan belum dikonfirmasi
         st.warning(f"⚠️ Data untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} sudah ada di Google Sheets.")
-        confirm_update = st.button(
-            f"📝 Ya, perbarui data {row['Provinsi']} {row['Bulan']} {row['Tahun']}",
-            key=f"confirm_{key_prefix}_{row['Provinsi']}_{row['Bulan']}_{row['Tahun']}"
-        )
-
-        if confirm_update:
-            # Lakukan update jika tombol ditekan
-            idx = df.index[mask][0]
-            for k, v in row.items():
-                df.at[idx, k] = v
-
-            worksheet.clear()
-            worksheet.append_row(list(df.columns))
-            for r in df.to_numpy().tolist():
-                worksheet.append_row([str(x) if x is not None else "" for x in r])
-
-            st.success(f"✅ Data {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} berhasil diperbarui.")
+        if st.button(f"📝 Ya, perbarui data {row['Provinsi']} {row['Bulan']} {row['Tahun']}", key=key_update):
+            st.session_state[key_update] = True
+            st.experimental_rerun()
         else:
             st.info("ℹ️ Tekan tombol di atas jika ingin memperbarui data.")
         return df
+
+    elif mask.any() and st.session_state.get(key_update, False):
+        # Jika sudah dikonfirmasi → lakukan update
+        idx = df.index[mask][0]
+        for k, v in row.items():
+            df.at[idx, k] = v
+
+        worksheet.clear()
+        worksheet.append_row(list(df.columns))
+        for r in df.to_numpy().tolist():
+            worksheet.append_row([str(x) if x is not None else "" for x in r])
+
+        st.success(f"✅ Data {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} berhasil diperbarui.")
+        st.session_state[key_update] = False
+        return df
+
     else:
-        # Jika belum ada, tambahkan data baru
+        # Jika belum ada → tambah data baru
         worksheet.append_row([str(x) if x is not None else "" for x in row.values()])
         st.success(f"✅ Data baru ditambahkan ({row['Provinsi']} {row['Bulan']} {row['Tahun']}).")
         return df
