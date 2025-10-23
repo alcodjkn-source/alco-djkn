@@ -181,6 +181,7 @@ if submit:
     ws = open_or_create_worksheet(client, provinsi)
     df = get_as_dataframe(ws, evaluate_formulas=True, header=0).dropna(how="all")
 
+    # Siapkan data input
     row = {
         "Timestamp": datetime.datetime.now().isoformat(),
         "Provinsi": provinsi,
@@ -200,21 +201,21 @@ if submit:
         "Catatan": notes
     }
 
+    # Simpan ke session agar tidak hilang setelah rerun
+    st.session_state["pending_update_row"] = row
+    st.session_state["pending_update_provinsi"] = provinsi
+
     # Cek apakah kombinasi Provinsi + Bulan + Tahun sudah ada
     mask = (df["Provinsi"] == provinsi) & (df["Bulan"] == bulan) & (df["Tahun"] == tahun)
 
     if mask.any():
         st.warning(f"⚠️ Data untuk {provinsi} bulan {bulan} {tahun} sudah ada di Google Sheets.")
-        # Simpan data sementara agar tidak hilang saat rerun
-        st.session_state["pending_update_row"] = row
-        st.session_state["pending_update_provinsi"] = provinsi
         st.session_state["need_confirm_update"] = True
     else:
-        # Jika belum ada, langsung simpan data baru
         upsert_to_gsheet(client, provinsi, row)
         st.session_state["need_confirm_update"] = False
 
-# Tombol konfirmasi update (muncul setelah rerun)
+# Jika perlu konfirmasi update
 if st.session_state.get("need_confirm_update", False):
     if st.button("📝 Ya, perbarui data lama"):
         client = gs_connect(service_account_info, json_keyfile_path)
