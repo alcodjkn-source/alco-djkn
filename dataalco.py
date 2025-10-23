@@ -75,7 +75,6 @@ def open_or_create_worksheet(client, provinsi):
     return ws
 
 def upsert_to_gsheet(client, provinsi, row):
-    """Fungsi menambah atau memperbarui data ke Google Sheets"""
     ws = open_or_create_worksheet(client, provinsi)
     df = get_as_dataframe(ws, evaluate_formulas=True, header=0).dropna(how="all")
 
@@ -83,11 +82,11 @@ def upsert_to_gsheet(client, provinsi, row):
     if df.empty:
         ws.clear()
         ws.append_row(list(row.keys()))
-        ws.append_row(list(map(str, row.values())))
+        ws.append_row([str(x) if x is not None else "" for x in row.values()])
         st.success(f"✅ Data pertama berhasil ditambahkan ({row['Provinsi']} {row['Bulan']} {row['Tahun']}).")
         return
 
-    # Cek apakah data sudah ada
+    # Cek apakah kombinasi data sudah ada
     mask = (
         (df["Provinsi"] == row["Provinsi"]) &
         (df["Bulan"] == row["Bulan"]) &
@@ -95,17 +94,17 @@ def upsert_to_gsheet(client, provinsi, row):
     )
 
     if mask.any():
-        # Update data lama
+        # Update hanya kolom yang diisi
         idx = df.index[mask][0]
         for k, v in row.items():
-            df.at[idx, k] = v
+            if v is not None and v != "":  # hanya update jika ada nilai
+                df.at[idx, k] = v
         ws.clear()
         ws.append_row(list(df.columns))
-        for r in df.to_numpy().tolist():
-            ws.append_row([str(x) if x is not None else "" for x in r])
+        ws.append_rows(df.astype(str).values.tolist())
         st.success(f"✅ Data {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} berhasil diperbarui.")
     else:
-        # Tambah data baru
+        # Tambahkan data baru
         ws.append_row([str(x) if x is not None else "" for x in row.values()])
         st.success(f"✅ Data baru ditambahkan ({row['Provinsi']} {row['Bulan']} {row['Tahun']}).")
 
@@ -135,6 +134,19 @@ if st.sidebar.button("🔍 Tes Koneksi Google Sheets"):
         st.error("❌ Error lain saat mencoba koneksi:")
         st.code(str(e))
 
+#Fungsi validasi angka 
+
+def parse_num(value, field_name=""):
+    """Konversi input ke float jika valid, atau None jika kosong.
+    Menampilkan error jika input bukan angka."""
+    if value.strip() == "":
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        st.error(f"❌ Input pada '{field_name}' harus berupa angka. Anda mengisi: '{value}'")
+        st.stop()
+
 # -----------------------
 # FORM INPUT
 # -----------------------
@@ -151,27 +163,41 @@ with col_p:
 notes = st.text_area("Catatan / penjelasan", "")
 
 st.markdown("### 🧾 Target dan Realisasi PNBP")
-c1, c2 = st.columns(2)
-with c1:
-    target_bln = st.number_input("Target Bulanan", min_value=0.0, step=0.01)
-    target_tahun_2024 = st.number_input("Target Tahunan 2024", min_value=0.0, step=0.01)
-    target_tahun_2025 = st.number_input("Target Tahunan 2025", min_value=0.0, step=0.01)
-with c2:
-    realisasi_bln = st.number_input("Realisasi Bulanan", min_value=0.0, step=0.01)
-    realisasi_ytd_2024 = st.number_input("Realisasi YTD 2024 s.d. Bulan ini", min_value=0.0, step=0.01)
-    realisasi_ytd_2025 = st.number_input("Realisasi YTD 2025 s.d. Bulan ini", min_value=0.0, step=0.01)
+
+col1, col2 = st.columns(2)
+with col1:
+    target_bln_in = st.text_input("🎯 Target Bulanan", placeholder="Kosongkan jika tidak diubah")
+    target_tahun_2024_in = st.text_input("🎯 Target Tahunan 2024", placeholder="Kosongkan jika tidak diubah")
+    target_tahun_2025_in = st.text_input("🎯 Target Tahunan 2025", placeholder="Kosongkan jika tidak diubah")
+with col2:
+    realisasi_bln_in = st.text_input("📊 Realisasi Bulanan", placeholder="Kosongkan jika tidak diubah")
+    realisasi_ytd_2024_in = st.text_input("📊 Realisasi YTD 2024 s.d. Bulan ini", placeholder="Kosongkan jika tidak diubah")
+    realisasi_ytd_2025_in = st.text_input("📊 Realisasi YTD 2025 s.d. Bulan ini", placeholder="Kosongkan jika tidak diubah")
 
 st.markdown("### 🧩 Rincian PNBP s.d. Bulan Berjalan")
-col_a, col_b = st.columns(2)
-with col_a:
-    lelang = st.number_input("PNBP Lelang", min_value=0.0, step=0.01)
-    bmn = st.number_input("PNBP BMN", min_value=0.0, step=0.01)
-with col_b:
-    piutang = st.number_input("PNBP Piutang Negara", min_value=0.0, step=0.01)
-    knl = st.number_input("PNBP Kekayaan Negara Lain-lain", min_value=0.0, step=0.01)
-lainnya = st.number_input("PNBP Lainnya", min_value=0.0, step=0.01)
+col3, col4 = st.columns(2)
+with col3:
+    lelang_in = st.text_input("💰 PNBP Lelang", placeholder="Kosongkan jika tidak diubah")
+    bmn_in = st.text_input("🏛️ PNBP BMN", placeholder="Kosongkan jika tidak diubah")
+with col4:
+    piutang_in = st.text_input("📄 PNBP Piutang Negara", placeholder="Kosongkan jika tidak diubah")
+    knl_in = st.text_input("🏠 PNBP Kekayaan Negara Lain-lain", placeholder="Kosongkan jika tidak diubah")
+lainnya_in = st.text_input("🗂️ PNBP Lainnya", placeholder="Kosongkan jika tidak diubah")
 
-submit = st.button("💾 Simpan Data & Tampilkan Visualisasi")
+notes = st.text_area("📝 Catatan / penjelasan", "")
+
+# Konversi dan validasi angka
+target_bln = parse_num(target_bln_in, "Target Bulanan")
+target_tahun_2024 = parse_num(target_tahun_2024_in, "Target Tahunan 2024")
+target_tahun_2025 = parse_num(target_tahun_2025_in, "Target Tahunan 2025")
+realisasi_bln = parse_num(realisasi_bln_in, "Realisasi Bulanan")
+realisasi_ytd_2024 = parse_num(realisasi_ytd_2024_in, "Realisasi YTD 2024")
+realisasi_ytd_2025 = parse_num(realisasi_ytd_2025_in, "Realisasi YTD 2025")
+lelang = parse_num(lelang_in, "PNBP Lelang")
+bmn = parse_num(bmn_in, "PNBP BMN")
+piutang = parse_num(piutang_in, "PNBP Piutang Negara")
+knl = parse_num(knl_in, "PNBP Kekayaan Negara Lain-lain")
+lainnya = parse_num(lainnya_in, "PNBP Lainnya")
 
 # -----------------------
 # SIMPAN KE GOOGLE SHEETS
