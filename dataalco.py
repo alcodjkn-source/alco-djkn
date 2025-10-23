@@ -74,34 +74,45 @@ def open_or_create_worksheet(client, provinsi):
         ])
     return ws
 
-def upsert_row_insert_only(worksheet, row):
-    """Menambahkan baris baru jika kombinasi Provinsi, Bulan, Tahun belum ada."""
+def upsert_row_with_confirmation(worksheet, row):
+    """Menambah atau memperbarui data dengan konfirmasi jika data sudah ada."""
     df = get_as_dataframe(worksheet, evaluate_formulas=True, header=0).dropna(how="all")
 
-    # Pastikan kolom sudah ada
-    if df.empty or "Provinsi" not in df.columns:
+    # Pastikan worksheet tidak kosong
+    if df.empty:
         worksheet.clear()
         worksheet.append_row(list(row.keys()))
         worksheet.append_row(list(map(str, row.values())))
-        st.success(f"✅ Sheet baru dibuat dan data pertama untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} berhasil disimpan.")
+        st.success(f"✅ Data pertama berhasil ditambahkan untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']}.")
         return df
 
-    # Cek apakah kombinasi Provinsi, Bulan, Tahun sudah ada
+    # Cek apakah kombinasi data sudah ada
     mask = (
-        (df["Provinsi"].astype(str) == str(row["Provinsi"])) &
-        (df["Bulan"].astype(str) == str(row["Bulan"])) &
-        (df["Tahun"].astype(str) == str(row["Tahun"]))
+        (df["Provinsi"] == row["Provinsi"]) &
+        (df["Bulan"] == row["Bulan"]) &
+        (df["Tahun"] == row["Tahun"])
     )
 
     if mask.any():
-        # Jika sudah ada, tampilkan peringatan dan tidak menyimpan ulang
-        st.warning(f"⚠️ Data untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} sudah ada di Google Sheets. Tidak disimpan ulang.")
+        # Jika sudah ada data yang sama, tampilkan konfirmasi
+        st.warning(f"⚠️ Data untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} sudah ada.")
+        if st.button(f"📝 Ya, perbarui data {row['Provinsi']} {row['Bulan']} {row['Tahun']}"):
+            idx = df.index[mask][0]
+            for k, v in row.items():
+                df.at[idx, k] = v
+            worksheet.clear()
+            worksheet.append_row(list(df.columns))
+            for r in df.to_numpy().tolist():
+                worksheet.append_row([str(x) if x is not None else "" for x in r])
+            st.success(f"✅ Data {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} berhasil diperbarui.")
+        else:
+            st.info("ℹ️ Data tidak diperbarui.")
         return df
-
-    # Jika belum ada, tambahkan data baru
-    worksheet.append_row([str(x) if x is not None else "" for x in row.values()])
-    st.success(f"✅ Data baru untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} berhasil ditambahkan.")
-    return df
+    else:
+        # Jika belum ada, tambahkan data baru
+        worksheet.append_row([str(x) if x is not None else "" for x in row.values()])
+        st.success(f"✅ Data baru berhasil ditambahkan untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']}.")
+        return df
 
 
 # --- TEST KONEKSI GOOGLE SHEETS ---
