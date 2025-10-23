@@ -310,7 +310,7 @@ fig1.add_bar(
     y=vals_target,
     name="Target",
     marker_color="#005BAC",
-    text=[f"{v:,.0f}" for v in vals_target],
+    text=[f"{float(v):,.0f}" if isinstance(v, (int, float)) and v is not None else "" for v in vals_target],
 )
 fig1.add_bar(
     x=months,
