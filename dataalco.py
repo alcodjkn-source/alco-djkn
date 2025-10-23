@@ -203,6 +203,13 @@ lainnya = parse_num(lainnya_in, "PNBP Lainnya")
 # SIMPAN KE GOOGLE SHEETS
 # -----------------------
 df_ws = pd.DataFrame()
+
+# Semua input field ...
+notes = st.text_area("📝 Catatan / penjelasan", "")
+
+# Tombol simpan (WAJIB ADA)
+submit = st.button("💾 Simpan Data & Tampilkan Visualisasi")
+
 if submit:
     if not (json_keyfile_path or service_account_info):
         st.error("⚠️ Tidak ada credentials. Upload/paste JSON credentials di sidebar agar data tersimpan ke Google Sheets.")
