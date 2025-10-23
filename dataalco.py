@@ -163,10 +163,6 @@ piutang = parse_num(piutang_in, "PNBP Piutang Negara")
 knl = parse_num(knl_in, "PNBP Kekayaan Negara Lain-lain")
 lainnya = parse_num(lainnya_in, "PNBP Lainnya")
 
-# Saat klik "Simpan Data"
-st.session_state["pending_update_row"] = row
-st.session_state["pending_update_provinsi"] = provinsi
-
 # =====================================================
 # SIMPAN / KONFIRMASI UPDATE
 # =====================================================
