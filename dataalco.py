@@ -224,18 +224,32 @@ if submit:
         upsert_to_gsheet(client, provinsi, row)
         st.session_state["need_confirm_update"] = False
 
-# Konfirmasi update jika perlu
+# =====================================================
+# KONFIRMASI POP-UP (MODAL) UNTUK UPDATE DATA
+# =====================================================
 if st.session_state["need_confirm_update"]:
-    st.info("Tekan tombol di bawah untuk memperbarui data yang sudah ada.")
-    if st.button("📝 Ya, perbarui data lama"):
-        client = gs_connect(service_account_info, json_keyfile_path)
-        upsert_to_gsheet(
-            client,
-            st.session_state["pending_update_provinsi"],
-            st.session_state["pending_update_row"]
+    with st.modal("⚠️ Konfirmasi Pembaruan Data"):
+        st.warning(
+            f"Data untuk **{st.session_state['pending_update_provinsi']}** bulan **{bulan} {tahun}** sudah ada di Google Sheets."
         )
-        st.success("✅ Data berhasil diperbarui di Google Sheets.")
-        st.session_state["need_confirm_update"] = False
+        st.markdown("Apakah Anda ingin **memperbarui** data yang sudah ada?")
+
+        col_confirm = st.columns(2)
+        with col_confirm[0]:
+            if st.button("✅ Ya, perbarui data lama", key="confirm_update_yes"):
+                client = gs_connect(service_account_info, json_keyfile_path)
+                upsert_to_gsheet(
+                    client,
+                    st.session_state["pending_update_provinsi"],
+                    st.session_state["pending_update_row"]
+                )
+                st.toast("✅ Data berhasil diperbarui di Google Sheets.")
+                st.session_state["need_confirm_update"] = False
+
+        with col_confirm[1]:
+            if st.button("❌ Batal", key="confirm_update_no"):
+                st.info("Tidak ada perubahan yang disimpan.")
+                st.session_state["need_confirm_update"] = False
 
 # =====================================================
 # TABEL REKAP & VISUALISASI PER TAHUN
