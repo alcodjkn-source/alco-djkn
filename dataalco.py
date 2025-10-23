@@ -163,6 +163,10 @@ piutang = parse_num(piutang_in, "PNBP Piutang Negara")
 knl = parse_num(knl_in, "PNBP Kekayaan Negara Lain-lain")
 lainnya = parse_num(lainnya_in, "PNBP Lainnya")
 
+# Saat klik "Simpan Data"
+st.session_state["pending_update_row"] = row
+st.session_state["pending_update_provinsi"] = provinsi
+
 # =====================================================
 # SIMPAN / KONFIRMASI UPDATE
 # =====================================================
@@ -193,12 +197,14 @@ if submit:
     }
 
     mask = (df["Provinsi"] == provinsi) & (df["Bulan"] == bulan) & (df["Tahun"] == tahun)
-    if mask.any():
-        st.warning(f"⚠️ Data untuk {provinsi} bulan {bulan} {tahun} sudah ada. Klik di bawah jika ingin perbarui.")
-        if st.button("📝 Ya, perbarui data lama"):
-            upsert_to_gsheet(client, provinsi, row)
-    else:
-        upsert_to_gsheet(client, provinsi, row)
+    if st.button("📝 Ya, perbarui data lama"):
+    client = gs_connect(service_account_info, json_keyfile_path)
+    upsert_to_gsheet(
+        client,
+        st.session_state["pending_update_provinsi"],
+        st.session_state["pending_update_row"]
+    )
+    st.success("✅ Data berhasil diperbarui di Google Sheets.")
 
 # =====================================================
 # TABEL REKAP & VISUALISASI PER TAHUN
