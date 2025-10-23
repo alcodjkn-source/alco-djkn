@@ -107,7 +107,7 @@ def upsert_to_gsheet(client, provinsi, row):
     else:
         # Tambah data baru
         ws.append_row([str(x) if x is not None else "" for x in row.values()])
-        st.success(f"✅ Data baru ditambahkan ({row['Provinsi']} {row['Bulan']} {row['Tahun']})."
+        st.success(f"✅ Data baru ditambahkan ({row['Provinsi']} {row['Bulan']} {row['Tahun']}).")
 
 
 # --- TEST KONEKSI GOOGLE SHEETS ---
