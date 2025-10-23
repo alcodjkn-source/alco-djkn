@@ -156,35 +156,39 @@ col_p, col_t = st.columns([1,2])
 with col_p:
     provinsi = st.selectbox("Pilih Provinsi", [
         "DKI Jakarta","Jawa Barat","Jawa Tengah","Jawa Timur","Bali","Sumatera Utara","Lampung"
-    ])
-    bulan = st.selectbox("Bulan Laporan", ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"],
-                         index=datetime.datetime.now().month-1)
-    tahun = st.number_input("Tahun", min_value=2024, max_value=2100, value=datetime.datetime.now().year)
-notes = st.text_area("Catatan / penjelasan", "")
+    ], key="provinsi_input")
+    bulan = st.selectbox(
+        "Bulan Laporan", 
+        ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"],
+        index=datetime.datetime.now().month-1,
+        key="bulan_input"
+    )
+    tahun = st.number_input("Tahun", min_value=2024, max_value=2100, value=datetime.datetime.now().year, key="tahun_input")
+
+notes = st.text_area("📝 Catatan / penjelasan", "", key="catatan_input")
 
 st.markdown("### 🧾 Target dan Realisasi PNBP")
 
 col1, col2 = st.columns(2)
 with col1:
-    target_bln_in = st.text_input("🎯 Target Bulanan", placeholder="Kosongkan jika tidak diubah")
-    target_tahun_2024_in = st.text_input("🎯 Target Tahunan 2024", placeholder="Kosongkan jika tidak diubah")
-    target_tahun_2025_in = st.text_input("🎯 Target Tahunan 2025", placeholder="Kosongkan jika tidak diubah")
+    target_bln_in = st.text_input("🎯 Target Bulanan", placeholder="Kosongkan jika tidak diubah", key="target_bln")
+    target_tahun_2024_in = st.text_input("🎯 Target Tahunan 2024", placeholder="Kosongkan jika tidak diubah", key="target_2024")
+    target_tahun_2025_in = st.text_input("🎯 Target Tahunan 2025", placeholder="Kosongkan jika tidak diubah", key="target_2025")
 with col2:
-    realisasi_bln_in = st.text_input("📊 Realisasi Bulanan", placeholder="Kosongkan jika tidak diubah")
-    realisasi_ytd_2024_in = st.text_input("📊 Realisasi YTD 2024 s.d. Bulan ini", placeholder="Kosongkan jika tidak diubah")
-    realisasi_ytd_2025_in = st.text_input("📊 Realisasi YTD 2025 s.d. Bulan ini", placeholder="Kosongkan jika tidak diubah")
+    realisasi_bln_in = st.text_input("📊 Realisasi Bulanan", placeholder="Kosongkan jika tidak diubah", key="realisasi_bln")
+    realisasi_ytd_2024_in = st.text_input("📊 Realisasi YTD 2024 s.d. Bulan ini", placeholder="Kosongkan jika tidak diubah", key="realisasi_ytd_2024")
+    realisasi_ytd_2025_in = st.text_input("📊 Realisasi YTD 2025 s.d. Bulan ini", placeholder="Kosongkan jika tidak diubah", key="realisasi_ytd_2025")
 
 st.markdown("### 🧩 Rincian PNBP s.d. Bulan Berjalan")
 col3, col4 = st.columns(2)
 with col3:
-    lelang_in = st.text_input("💰 PNBP Lelang", placeholder="Kosongkan jika tidak diubah")
-    bmn_in = st.text_input("🏛️ PNBP BMN", placeholder="Kosongkan jika tidak diubah")
+    lelang_in = st.text_input("💰 PNBP Lelang", placeholder="Kosongkan jika tidak diubah", key="pnbp_lelang")
+    bmn_in = st.text_input("🏛️ PNBP BMN", placeholder="Kosongkan jika tidak diubah", key="pnbp_bmn")
 with col4:
-    piutang_in = st.text_input("📄 PNBP Piutang Negara", placeholder="Kosongkan jika tidak diubah")
-    knl_in = st.text_input("🏠 PNBP Kekayaan Negara Lain-lain", placeholder="Kosongkan jika tidak diubah")
-lainnya_in = st.text_input("🗂️ PNBP Lainnya", placeholder="Kosongkan jika tidak diubah")
+    piutang_in = st.text_input("📄 PNBP Piutang Negara", placeholder="Kosongkan jika tidak diubah", key="pnbp_piutang")
+    knl_in = st.text_input("🏠 PNBP Kekayaan Negara Lain-lain", placeholder="Kosongkan jika tidak diubah", key="pnbp_knl")
 
-notes = st.text_area("📝 Catatan / penjelasan", "")
+lainnya_in = st.text_input("🗂️ PNBP Lainnya", placeholder="Kosongkan jika tidak diubah", key="pnbp_lainnya")
 
 # Konversi dan validasi angka
 target_bln = parse_num(target_bln_in, "Target Bulanan")
