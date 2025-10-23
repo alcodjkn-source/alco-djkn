@@ -74,57 +74,40 @@ def open_or_create_worksheet(client, provinsi):
         ])
     return ws
 
-def upsert_row_with_confirmation(worksheet, row, key_prefix=""):
-    """Menambah atau memperbarui data dengan konfirmasi eksplisit jika data sudah ada."""
-    df = get_as_dataframe(worksheet, evaluate_formulas=True, header=0).dropna(how="all")
+def upsert_to_gsheet(client, provinsi, row):
+    """Fungsi menambah atau memperbarui data ke Google Sheets"""
+    ws = open_or_create_worksheet(client, provinsi)
+    df = get_as_dataframe(ws, evaluate_formulas=True, header=0).dropna(how="all")
 
-    # Jika sheet kosong → tulis header dan data pertama
+    # Jika sheet kosong
     if df.empty:
-        worksheet.clear()
-        worksheet.append_row(list(row.keys()))
-        worksheet.append_row(list(map(str, row.values())))
+        ws.clear()
+        ws.append_row(list(row.keys()))
+        ws.append_row(list(map(str, row.values())))
         st.success(f"✅ Data pertama berhasil ditambahkan ({row['Provinsi']} {row['Bulan']} {row['Tahun']}).")
-        return df
+        return
 
-    # Cek apakah kombinasi data sudah ada
+    # Cek apakah data sudah ada
     mask = (
         (df["Provinsi"] == row["Provinsi"]) &
         (df["Bulan"] == row["Bulan"]) &
         (df["Tahun"] == row["Tahun"])
     )
 
-    key_update = f"confirm_update_{key_prefix}_{row['Provinsi']}_{row['Bulan']}_{row['Tahun']}"
-
-    if mask.any() and not st.session_state.get(key_update, False):
-        # Jika data sudah ada dan belum dikonfirmasi
-        st.warning(f"⚠️ Data untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} sudah ada di Google Sheets.")
-        if st.button(f"📝 Ya, perbarui data {row['Provinsi']} {row['Bulan']} {row['Tahun']}", key=key_update):
-            st.session_state[key_update] = True
-            st.experimental_rerun()
-        else:
-            st.info("ℹ️ Tekan tombol di atas jika ingin memperbarui data.")
-        return df
-
-    elif mask.any() and st.session_state.get(key_update, False):
-        # Jika sudah dikonfirmasi → lakukan update
+    if mask.any():
+        # Update data lama
         idx = df.index[mask][0]
         for k, v in row.items():
             df.at[idx, k] = v
-
-        worksheet.clear()
-        worksheet.append_row(list(df.columns))
+        ws.clear()
+        ws.append_row(list(df.columns))
         for r in df.to_numpy().tolist():
-            worksheet.append_row([str(x) if x is not None else "" for x in r])
-
+            ws.append_row([str(x) if x is not None else "" for x in r])
         st.success(f"✅ Data {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} berhasil diperbarui.")
-        st.session_state[key_update] = False
-        return df
-
     else:
-        # Jika belum ada → tambah data baru
-        worksheet.append_row([str(x) if x is not None else "" for x in row.values()])
-        st.success(f"✅ Data baru ditambahkan ({row['Provinsi']} {row['Bulan']} {row['Tahun']}).")
-        return df
+        # Tambah data baru
+        ws.append_row([str(x) if x is not None else "" for x in row.values()])
+        st.success(f"✅ Data baru ditambahkan ({row['Provinsi']} {row['Bulan']} {row['Tahun']})."
 
 
 # --- TEST KONEKSI GOOGLE SHEETS ---
@@ -199,9 +182,9 @@ if submit:
         st.stop()
 
     client = gs_connect(service_account_info, json_keyfile_path)
-    ws = open_or_create_worksheet(client, provinsi)
 
-    row = {
+    # Simpan data ke session agar tidak hilang setelah rerun
+    st.session_state["pending_row"] = {
         "Timestamp": datetime.datetime.now().isoformat(),
         "Provinsi": provinsi,
         "Tahun": tahun,
@@ -212,15 +195,39 @@ if submit:
         "TargetTahunan2025": target_tahun_2025,
         "RealisasiYTD2024": realisasi_ytd_2024,
         "RealisasiYTD2025": realisasi_ytd_2025,
-        "Lelang": lelang, "BMN": bmn, "Piutang": piutang, "KNL": knl, "Lainnya": lainnya,
-        "Catatan": notes
+        "Lelang": lelang,
+        "BMN": bmn,
+        "Piutang": piutang,
+        "KNL": knl,
+        "Lainnya": lainnya,
+        "Catatan": notes,
     }
+    st.session_state["pending_provinsi"] = provinsi
 
-    df_ws = upsert_row_with_confirmation(ws, row, key_prefix="inputdata")
+    # Cek apakah data sudah ada
+    ws = open_or_create_worksheet(client, provinsi)
+    df = get_as_dataframe(ws, evaluate_formulas=True, header=0).dropna(how="all")
 
-# Pastikan df_ws selalu ada meski data belum tersimpan
-if 'df_ws' not in locals():
-    df_ws = pd.DataFrame()
+    mask = (
+        (df["Provinsi"] == provinsi) &
+        (df["Bulan"] == bulan) &
+        (df["Tahun"] == tahun)
+    )
+
+    if mask.any():
+        st.warning(f"⚠️ Data untuk {provinsi} bulan {bulan} {tahun} sudah ada di Google Sheets.")
+        st.session_state["need_confirm_update"] = True
+    else:
+        upsert_to_gsheet(client, provinsi, st.session_state["pending_row"])
+        st.session_state["need_confirm_update"] = False
+# -----------------------
+# TOMBOL KONFIRMASI UPDATE (MUNCUL SETELAH RERUN)
+# -----------------------
+if st.session_state.get("need_confirm_update", False):
+    if st.button("📝 Ya, perbarui data yang sudah ada"):
+        client = gs_connect(service_account_info, json_keyfile_path)
+        upsert_to_gsheet(client, st.session_state["pending_provinsi"], st.session_state["pending_row"])
+        st.session_state["need_confirm_update"] = False
 
 # -----------------------
 # HITUNG MoM & YoY OTOMATIS
