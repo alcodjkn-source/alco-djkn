@@ -176,6 +176,7 @@ submit = st.button("💾 Simpan Data & Tampilkan Visualisasi")
 # -----------------------
 # SIMPAN KE GOOGLE SHEETS
 # -----------------------
+df_ws = pd.DataFrame()
 if submit:
     if not (json_keyfile_path or service_account_info):
         st.error("⚠️ Tidak ada credentials. Upload/paste JSON credentials di sidebar agar data tersimpan ke Google Sheets.")
