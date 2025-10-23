@@ -74,16 +74,16 @@ def open_or_create_worksheet(client, provinsi):
         ])
     return ws
 
-def upsert_row_with_confirmation(worksheet, row):
-    """Menambah atau memperbarui data dengan konfirmasi jika data sudah ada."""
+def upsert_row_with_confirmation(worksheet, row, key_prefix=""):
+    """Menambah atau memperbarui data dengan konfirmasi eksplisit jika data sudah ada."""
     df = get_as_dataframe(worksheet, evaluate_formulas=True, header=0).dropna(how="all")
 
-    # Pastikan worksheet tidak kosong
+    # Jika sheet kosong → tulis header dan data pertama
     if df.empty:
         worksheet.clear()
         worksheet.append_row(list(row.keys()))
         worksheet.append_row(list(map(str, row.values())))
-        st.success(f"✅ Data pertama berhasil ditambahkan untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']}.")
+        st.success(f"✅ Data pertama berhasil ditambahkan ({row['Provinsi']} {row['Bulan']} {row['Tahun']}).")
         return df
 
     # Cek apakah kombinasi data sudah ada
@@ -94,24 +94,32 @@ def upsert_row_with_confirmation(worksheet, row):
     )
 
     if mask.any():
-        # Jika sudah ada data yang sama, tampilkan konfirmasi
-        st.warning(f"⚠️ Data untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} sudah ada.")
-        if st.button(f"📝 Ya, perbarui data {row['Provinsi']} {row['Bulan']} {row['Tahun']}"):
+        # Jika data sudah ada, tampilkan tombol konfirmasi di luar cache
+        st.warning(f"⚠️ Data untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} sudah ada di Google Sheets.")
+        confirm_update = st.button(
+            f"📝 Ya, perbarui data {row['Provinsi']} {row['Bulan']} {row['Tahun']}",
+            key=f"confirm_{key_prefix}_{row['Provinsi']}_{row['Bulan']}_{row['Tahun']}"
+        )
+
+        if confirm_update:
+            # Lakukan update jika tombol ditekan
             idx = df.index[mask][0]
             for k, v in row.items():
                 df.at[idx, k] = v
+
             worksheet.clear()
             worksheet.append_row(list(df.columns))
             for r in df.to_numpy().tolist():
                 worksheet.append_row([str(x) if x is not None else "" for x in r])
+
             st.success(f"✅ Data {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']} berhasil diperbarui.")
         else:
-            st.info("ℹ️ Data tidak diperbarui.")
+            st.info("ℹ️ Tekan tombol di atas jika ingin memperbarui data.")
         return df
     else:
         # Jika belum ada, tambahkan data baru
         worksheet.append_row([str(x) if x is not None else "" for x in row.values()])
-        st.success(f"✅ Data baru berhasil ditambahkan untuk {row['Provinsi']} bulan {row['Bulan']} {row['Tahun']}.")
+        st.success(f"✅ Data baru ditambahkan ({row['Provinsi']} {row['Bulan']} {row['Tahun']}).")
         return df
 
 
@@ -183,7 +191,7 @@ submit = st.button("💾 Simpan Data & Tampilkan Visualisasi")
 # -----------------------
 if submit:
     if not (json_keyfile_path or service_account_info):
-        st.error("⚠️ Tidak ada credentials. Pastikan sudah menambahkan `gcp_service_account` di Streamlit Secrets atau upload JSON di sidebar.")
+        st.error("⚠️ Tidak ada credentials. Upload/paste JSON credentials di sidebar agar data tersimpan ke Google Sheets.")
         st.stop()
 
     client = gs_connect(service_account_info, json_keyfile_path)
@@ -204,8 +212,7 @@ if submit:
         "Catatan": notes
     }
 
-    df_ws = upsert_row_with_confirmation(ws, row)
-    st.success(f"✅ Data {provinsi} bulan {bulan} {tahun} tersimpan & diperbarui di Google Sheets!")
+    df_ws = upsert_row_with_confirmation(ws, row, key_prefix="inputdata")
 
 # Pastikan df_ws selalu ada meski data belum tersimpan
 if 'df_ws' not in locals():
