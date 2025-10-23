@@ -169,7 +169,7 @@ lainnya = parse_num(lainnya_in, "PNBP Lainnya")
 # Tombol simpan
 submit = st.button("💾 Simpan Data & Tampilkan Visualisasi")
 
-# Pastikan variabel session_state selalu ada
+# Pastikan session_state selalu ada
 if "pending_update_row" not in st.session_state:
     st.session_state["pending_update_row"] = None
 if "pending_update_provinsi" not in st.session_state:
@@ -218,6 +218,19 @@ if submit:
         st.session_state["need_confirm_update"] = True
     else:
         upsert_to_gsheet(client, provinsi, row)
+        st.session_state["need_confirm_update"] = False
+
+# Konfirmasi update jika perlu
+if st.session_state["need_confirm_update"]:
+    st.warning("⚠️ Data ini sudah ada. Klik tombol di bawah untuk memperbarui data yang sudah ada.")
+    if st.button("📝 Ya, perbarui data lama"):
+        client = gs_connect(service_account_info, json_keyfile_path)
+        upsert_to_gsheet(
+            client,
+            st.session_state["pending_update_provinsi"],
+            st.session_state["pending_update_row"]
+        )
+        st.success("✅ Data berhasil diperbarui di Google Sheets.")
         st.session_state["need_confirm_update"] = False
 
 # =====================================================
