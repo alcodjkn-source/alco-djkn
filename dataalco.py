@@ -104,6 +104,7 @@ def upsert_to_gsheet(client, provinsi, row):
         for k, v in row.items():
             if v is not None and v != "":
                 df.at[idx, k] = v
+        df = df.fillna("")  # 🔹 pastikan tidak ada NaN sebelum disimpan
         ws.clear()
         ws.append_row(list(df.columns))
         ws.append_rows(df.astype(str).values.tolist())
@@ -111,6 +112,7 @@ def upsert_to_gsheet(client, provinsi, row):
     else:
         ws.append_row([str(x) if x is not None else "" for x in row.values()])
         st.success(f"✅ Data baru ditambahkan ({row['Provinsi']} {row['Bulan']} {row['Tahun']}).")
+
 
 # =====================================================
 # FORM INPUT DATA
