@@ -192,19 +192,39 @@ if submit:
         "TargetTahunan2025": target_tahun_2025,
         "RealisasiYTD2024": realisasi_ytd_2024,
         "RealisasiYTD2025": realisasi_ytd_2025,
-        "Lelang": lelang, "BMN": bmn, "Piutang": piutang, "KNL": knl, "Lainnya": lainnya,
+        "Lelang": lelang,
+        "BMN": bmn,
+        "Piutang": piutang,
+        "KNL": knl,
+        "Lainnya": lainnya,
         "Catatan": notes
     }
 
+    # Cek apakah kombinasi Provinsi + Bulan + Tahun sudah ada
     mask = (df["Provinsi"] == provinsi) & (df["Bulan"] == bulan) & (df["Tahun"] == tahun)
+
+    if mask.any():
+        st.warning(f"⚠️ Data untuk {provinsi} bulan {bulan} {tahun} sudah ada di Google Sheets.")
+        # Simpan data sementara agar tidak hilang saat rerun
+        st.session_state["pending_update_row"] = row
+        st.session_state["pending_update_provinsi"] = provinsi
+        st.session_state["need_confirm_update"] = True
+    else:
+        # Jika belum ada, langsung simpan data baru
+        upsert_to_gsheet(client, provinsi, row)
+        st.session_state["need_confirm_update"] = False
+
+# Tombol konfirmasi update (muncul setelah rerun)
+if st.session_state.get("need_confirm_update", False):
     if st.button("📝 Ya, perbarui data lama"):
-    client = gs_connect(service_account_info, json_keyfile_path)
-    upsert_to_gsheet(
-        client,
-        st.session_state["pending_update_provinsi"],
-        st.session_state["pending_update_row"]
-    )
-    st.success("✅ Data berhasil diperbarui di Google Sheets.")
+        client = gs_connect(service_account_info, json_keyfile_path)
+        upsert_to_gsheet(
+            client,
+            st.session_state["pending_update_provinsi"],
+            st.session_state["pending_update_row"]
+        )
+        st.success("✅ Data berhasil diperbarui di Google Sheets.")
+        st.session_state["need_confirm_update"] = False
 
 # =====================================================
 # TABEL REKAP & VISUALISASI PER TAHUN
