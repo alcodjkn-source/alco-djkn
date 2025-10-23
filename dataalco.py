@@ -170,7 +170,16 @@ st.session_state["pending_update_provinsi"] = provinsi
 # =====================================================
 # SIMPAN / KONFIRMASI UPDATE
 # =====================================================
+# Tombol simpan
 submit = st.button("💾 Simpan Data & Tampilkan Visualisasi")
+
+# Pastikan variabel session_state selalu ada
+if "pending_update_row" not in st.session_state:
+    st.session_state["pending_update_row"] = None
+if "pending_update_provinsi" not in st.session_state:
+    st.session_state["pending_update_provinsi"] = None
+if "need_confirm_update" not in st.session_state:
+    st.session_state["need_confirm_update"] = False
 
 if submit:
     if not (json_keyfile_path or service_account_info):
@@ -201,11 +210,11 @@ if submit:
         "Catatan": notes
     }
 
-    # Simpan ke session agar tidak hilang setelah rerun
+    # Simpan row & provinsi ke session agar aman setelah rerun
     st.session_state["pending_update_row"] = row
     st.session_state["pending_update_provinsi"] = provinsi
 
-    # Cek apakah kombinasi Provinsi + Bulan + Tahun sudah ada
+    # Cek apakah data sudah ada
     mask = (df["Provinsi"] == provinsi) & (df["Bulan"] == bulan) & (df["Tahun"] == tahun)
 
     if mask.any():
@@ -215,8 +224,9 @@ if submit:
         upsert_to_gsheet(client, provinsi, row)
         st.session_state["need_confirm_update"] = False
 
-# Jika perlu konfirmasi update
-if st.session_state.get("need_confirm_update", False):
+# Konfirmasi update jika perlu
+if st.session_state["need_confirm_update"]:
+    st.info("Tekan tombol di bawah untuk memperbarui data yang sudah ada.")
     if st.button("📝 Ya, perbarui data lama"):
         client = gs_connect(service_account_info, json_keyfile_path)
         upsert_to_gsheet(
