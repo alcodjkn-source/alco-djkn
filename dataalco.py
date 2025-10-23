@@ -204,7 +204,7 @@ if submit:
         "Catatan": notes
     }
 
-    df_ws = upsert_row_insert_only(ws, row)
+    df_ws = upsert_row_with_confirmation(ws, row)
     st.success(f"✅ Data {provinsi} bulan {bulan} {tahun} tersimpan & diperbarui di Google Sheets!")
 
 # Pastikan df_ws selalu ada meski data belum tersimpan
